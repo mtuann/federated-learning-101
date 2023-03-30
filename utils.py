@@ -98,3 +98,115 @@ class Net(nn.Module):
 # # print(args)
 # # import IPython
 # # IPython.embed()
+
+		# model = global_model
+
+		# print("Testing by the first client model")
+
+		# def compare_models(model_1, model_2):
+		# 	models_differ = 0
+		# 	for idlyer, (key_item_1, key_item_2) in enumerate(zip(model_1.state_dict().items(), model_2.state_dict().items())):
+		# 		if torch.equal(key_item_1[1], key_item_2[1]):
+		# 			print(idlyer, 'Match yes found at', key_item_1[0])
+		# 			pass
+		# 		else:
+		# 			models_differ += 1
+		# 			if (key_item_1[0] == key_item_2[0]):
+		# 				print(idlyer, 'Mismtach found at', key_item_1[0], key_item_2[0])
+		# 				# print(key_item_1[1], key_item_2[1])
+		# 				# exit(0)
+		# 			else:
+		# 				print(idlyer, 'Match found at', key_item_1[0])
+		# 				# raise Exception
+		# 	if models_differ == 0:
+		# 		print('Models match perfectly! :)')
+
+		# compare_models(client_model_list[0], model)
+		# exit(0)
+		# import IPython
+		# IPython.embed()
+		# for p_index, p in enumerate(model.parameters()):
+		# 	print(p_index, torch.equal(p.data, list(client_model_list[0].parameters())[p_index].data))
+		# train_test_model(args, client_model_list[0], device, test_loader, optimizer, criterion, cr_index, is_train=False)
+		# train_test_model(args, model, device, deepcopy(test_loader), optimizer, criterion, cr_index, is_train=False)
+
+		# get iteration of test_loader
+		# import IPython
+		# IPython.embed()
+		# getsp = next(iter(test_loader))
+
+		# op1 = client_model_list[0](getsp)
+		# print("Testing by aggregating all clients model")
+		# train_test_model(args, model, device, test_loader, optimizer, criterion, cr_index, is_train=False)
+
+		# exit(0)
+		# train_test_model(args, model, device, test_loader, optimizer, criterion, cr_index, is_train=False)
+
+		# op2 = model(getsp)
+		# print("Testing by the first client model again")
+		# print(op1)
+		# print(op2)
+
+		# train_test_model(args, model, device, test_loader, criterion, criterion, cr_index, is_train=False)
+
+	# 	train_test_model(args, model, device, train_loader, optimizer, criterion, epoch, is_train=True)
+	# 	train_test_model(args, model, device, test_loader, criterion, criterion, epoch, is_train=False)
+
+	# 	for param_group in optimizer.param_groups:
+	# 		logger.info(param_group['lr'])
+	# 	scheduler.step()
+ 
+	# import IPython
+	# IPython.embed()
+	# for name, params in model.state_dict().items():
+	# 	print("Model 1: ", net_list[0].state_dict()[name][0][0][0])
+	# 	print("Model 2: ", net_list[1].state_dict()[name][0][0][0])
+	# 	print("Main Model: ", model.state_dict()[name][0][0][0])
+	# 	break
+	# for p_index, p in enumerate(net_list[0].parameters()):
+	# 	# initial
+	# 	params_aggregator = torch.zeros(p.size()).to(device)
+	# 	for net_index, net in enumerate(net_list):
+	# 		# we assume the adv model always comes to the beginning
+	# 		params_aggregator = params_aggregator + net_freq[net_index] * list(net.parameters())[p_index].data
+	# 		if p_index == 3:
+	# 			# get the sum of all weight for layer p_index
+	# 			# import IPython
+	# 			# IPython.embed()
+	# 			sum_weight = list(net.parameters())[p_index].data.sum()
+	# 			print(sum_weight)
+	# 	whole_aggregator.append(params_aggregator)
+	# for name, data in model.state_dict().items():
+	# 	data.add_()
+
+	# exit(0)
+	# for param_index, p in enumerate(model.parameters()):
+	# 	p.data =  whole_aggregator[param_index]
+	# 	if param_index == 0:
+	# 		print(p.data)
+
+	# for key_item_1 in model.state_dict().items():
+	# 	print(key_item_1)
+	# 	break
+
+	# for key_item_1 in net_list[0].state_dict().items():
+	# 	print(key_item_1)
+	# 	break
+	# import IPython
+	# IPython.embed()
+	# for id, pr in enumerate(model.state_dict().items()):
+	# 	# if sum of weight in this layer is 0 then print id
+	# 	if (pr[1].sum() == 0):
+	# 		print(id, pr[0])
+	# 	# print(id, pr)
+	# 	# break
+	# print("Tuan end here")
+	# return model
+	#     print(param_index, whole_aggregator[param_index])
+	# import IPython
+	# IPython.embed()
+	# check new_model and net_list[0] are the same
+	# for p_index, p in enumerate(net_list[0].parameters()):
+	#     print(p_index, torch.equal(p.data, list(new_model.parameters())[p_index].data))
+
+	# return new_model
