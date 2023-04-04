@@ -176,7 +176,7 @@ def client_learning(client_id, model, mu, args, criterion, train_loader, test_lo
 	model.train()
 
 	# local_ep = 1
-
+	tau = 0
 	with torch.set_grad_enabled(True):
 		for e in range(local_ep):
 			running_loss, running_acc = AverageMeter(), AverageMeter()
@@ -205,12 +205,17 @@ def client_learning(client_id, model, mu, args, criterion, train_loader, test_lo
 				running_loss.update(loss.item() + diff_norm / data.size(0), data.size(0))
 				running_acc.update(correct / data.size(0), data.size(0))
 				
+				tau += 1
 				pbar.set_description(f"Local Epoch: {e + 1}/ {local_ep}, Loss: {running_loss.avg:.4f}, Acc: {running_acc.avg:.4f}" )
-			# pbar.set_description(f"Local Epoch: {e + 1}/ {local_ep}, Loss: {total_loss / total_sample:.4f}, Acc: {total_correct/ total_sample:.4f}" )
-
+				
 	logger.info(f"Client {client_id} at epoch: {local_ep} Train Loss: {running_loss.avg:.4f}, Acc: {running_acc.avg:.4f}" )
-	
-	return running_loss, running_acc
+	# tau for FedNova
+	# rho: Parameter controlling the momentum SGD
+	a_i = (tau - args.rho * (1 - pow(args.rho, tau)) / (1 - args.rho)) / (1 - args.rho)
+	# number of sample in train dataset (train_loader)
+	n_i = running_acc.count
+
+	return running_loss, running_acc, tau, a_i, n_i
 
 
 def generate_iid_data(train_dataset, test_dataset, args):
@@ -476,7 +481,33 @@ def fed_avg_aggregator(net_list, net_freq, device, model):
 			params.add_(update_per_layer.to(torch.int64))
 		else:
 			params.add_(update_per_layer)
-
+# (client_model_list, client_tau, client_ai, client_ni, device, model)
+def fed_nova_aggregator(net_list, device, model, list_ai, list_ni):
+	# https://github.com/Xtra-Computing/NIID-Bench/blob/692569f790af0f5908dba23a15d4d80ce7e7aec4/experiments.py#L375
+	total_n = sum(list_ni)
+	print(f"Aggregating models with FedNova with aggregation weight {list_ai}")
+	print(f"List of sample size {list_ni}")
+	weight_accumulator = {}
+	for name, params in model.state_dict().items():
+		weight_accumulator[name] = torch.zeros(params.size()).to(device)
+	
+	for net_index, net in enumerate(net_list):
+		for name, data in net.state_dict().items():
+			# weight_accumulator[name].add_( ( (data - model.state_dict()[name]) / list_ai[net_index] ) * (list_ni[net_index] / total_n))
+			weight_accumulator[name].add_( torch.true_divide( (model.state_dict()[name] - data), list_ai[net_index] ) * list_ni[net_index] / total_n)
+	coeff = 0.0
+	for i in range(len(list_ai)):
+		coeff += list_ai[i] * list_ni[i] / total_n
+		print(f"ai: {list_ai[i]} ni: {list_ni[i]} coeff: {coeff}")
+	print(f"coeff: {coeff}")
+	for name, params in model.state_dict().items():
+		update_per_layer = coeff * weight_accumulator[name]
+		# params.add_(coeff * update_per_layer)
+		if params.type() != update_per_layer.type():
+			params.sub_(update_per_layer.to(torch.int64))
+		else:
+			params.sub_(update_per_layer)
+	
 
 def main(json_config="./configs/fedml_config_yaml.json", project_name="fl-exps-benchmark", entity_name="mtuann"):
 	# set seed for training
@@ -525,7 +556,10 @@ def main(json_config="./configs/fedml_config_yaml.json", project_name="fl-exps-b
 		logger.info(f"Start training round: {cr_index} clients_in_round: {clients_in_round}")
 
 		client_model_list = [deepcopy(model) for _ in range(n_client_per_round)]
-		
+		client_tau = []
+		client_ai = []
+		client_ni = []
+  
 		total_sample_per_round = 0
 		for id_0, client_id in enumerate(clients_in_round):
 			total_sample_per_round += len(net_dataidx_map[client_id])
@@ -537,17 +571,25 @@ def main(json_config="./configs/fedml_config_yaml.json", project_name="fl-exps-b
 		for id_0, client_id in enumerate(clients_in_round):
 			logger.info(f"Start training round {cr_index} for client number {client_id}")
 
-			client_loss, client_acc = client_learning( client_id, client_model_list[id_0], mu, args, criterion, train_loaders[client_id], test_loader, device, args.lc_epoch, logger, )
+			client_loss, client_acc, tau_i, a_i, n_i = client_learning( client_id, client_model_list[id_0], mu, args, criterion, train_loaders[client_id], test_loader, device, args.lc_epoch, logger, )
+			client_tau.append(tau_i)
+			client_ai.append(a_i)
+			client_ni.append(n_i)
 			print("----------------------------------------")
 
 			# train_test_model(args, model, device, train_loaders[client_id], optimizer, criterion, epoch, is_train=True)
 		print(f"Done training round {cr_index} for all clients: {clients_in_round}")
-		
-		fed_avg_aggregator(client_model_list, models_weight, device, model)
+  
+		if args.federated_optimizer == "FedNova": # (net_list, device, model, list_ai, list_ni)
+			fed_nova_aggregator(client_model_list, device, model, client_ai, client_ni)
+		else:
+			# FedAvg/ FedProx
+			fed_avg_aggregator(client_model_list, models_weight, device, model)
 		# net_list, net_freq, device, model):
 		logger.info("Start check aggregation model on Test set")
 		running_loss, running_acc = train_test_model_one_epoch(args,model,device,test_loader,optimizer,criterion,cr_index,is_train=False,)
 		wandb.log({"step":cr_index, "test_loss": running_loss.avg, "test_acc": running_acc.avg})
+		
 		if running_acc.avg > best_acc:
 			best_acc = running_acc.avg
 			if args.save_model:
